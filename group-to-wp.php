@@ -226,7 +226,7 @@ class WeDevs_FB_Group_To_WP {
             $json_posts = wp_remote_retrieve_body( $request );
 
             if ( is_wp_error( $request ) || $request['response']['code'] != 200 ) {
-                self::log( 'error', 'Fetching failed: ' . $group_id );
+                self::log( 'error', 'Fetching failed with code: ' . $request['response']['code'] );
                 return false;
             }
 
