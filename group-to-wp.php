@@ -220,10 +220,13 @@ class WeDevs_FB_Group_To_WP {
         $json_posts = get_transient( $transient_key );
 
         if ( false === $json_posts ) {
+            self::log( 'info', 'Fetching data from facebook: ' . $group_id );
+
             $request = wp_remote_get( $url );
             $json_posts = wp_remote_retrieve_body( $request );
 
             if ( is_wp_error( $request ) || $request['response']['code'] != 200 ) {
+                self::log( 'error', 'Fetching failed: ' . $group_id );
                 return false;
             }
 
@@ -376,6 +379,20 @@ class WeDevs_FB_Group_To_WP {
         }
 
         return $content;
+    }
+
+    /**
+     * The main logging function
+     *
+     * @uses error_log
+     * @param string $type type of the error. e.g: debug, error, info
+     * @param string $msg
+     */
+    public static function log( $type = '', $msg = '' ) {
+        if ( WP_DEBUG == true ) {
+            $msg = sprintf( "[%s][%s] %s\n", date( 'd.m.Y h:i:s' ), $type, $msg );
+            error_log( $msg, 3, dirname( __FILE__ ) . '/debug.log' );
+        }
     }
 
 } // WeDevs_FB_Group_To_WP
