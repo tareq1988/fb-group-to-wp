@@ -220,7 +220,7 @@ class WeDevs_FB_Group_To_WP {
         $json_posts = get_transient( $transient_key );
 
         if ( false === $json_posts ) {
-            self::log( 'info', 'Fetching data from facebook: ' . $group_id );
+            self::log( 'debug', 'Fetching data from facebook: ' . $group_id );
 
             $request = wp_remote_get( $url );
             $json_posts = wp_remote_retrieve_body( $request );
@@ -231,6 +231,9 @@ class WeDevs_FB_Group_To_WP {
             }
 
             set_transient( $transient_key, $json_posts, (HOUR_IN_SECONDS - 60) );
+
+        } else {
+            self::log( 'debug', 'data pulled from cache: ' . $group_id );
         }
 
         $decoded = json_decode( $json_posts );
