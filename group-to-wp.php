@@ -227,7 +227,7 @@ class WeDevs_FB_Group_To_WP {
                 return false;
             }
 
-            set_transient( $transient_key, $json_posts, HOUR_IN_SECONDS );
+            set_transient( $transient_key, $json_posts, (HOUR_IN_SECONDS - 60) );
         }
 
         $decoded = json_decode( $json_posts );
