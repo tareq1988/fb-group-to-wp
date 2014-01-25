@@ -38,6 +38,8 @@ License: GPL2
 // don't call the file directly
 if ( !defined( 'ABSPATH' ) ) exit;
 
+// WeDevs_FB_Group_To_WP::init()->trash_all();
+
 /**
  * WeDevs_FB_Group_To_WP class
  *
@@ -64,7 +66,7 @@ class WeDevs_FB_Group_To_WP {
 
         // Localize our plugin
         add_action( 'init', array( $this, 'localization_setup' ) );
-        add_action( 'init', array( $this, 'test' ) );
+        add_action( 'init', array( $this, 'debug_run' ) );
         add_action( 'init', array( $this, 'register_post_type' ) );
 
         add_action( 'fbgr2wp_import', array( $this, 'do_import' ) );
@@ -199,8 +201,8 @@ class WeDevs_FB_Group_To_WP {
 
     }
 
-    function test() {
-        if ( !isset( $_GET['gr2wp_test'] ) ) {
+    function debug_run() {
+        if ( !isset( $_GET['fb2wp_test'] ) ) {
             return;
         }
 
@@ -227,7 +229,6 @@ class WeDevs_FB_Group_To_WP {
 
             set_transient( $transient_key, $json_posts, HOUR_IN_SECONDS );
         }
-
 
         $decoded = json_decode( $json_posts );
         $group_posts = $decoded->data;
@@ -337,10 +338,6 @@ class WeDevs_FB_Group_To_WP {
         // var_dump( $postarr );
         // var_dump( $meta );
 
-        // printf('<h3>%s</h3>', $postarr['post_title'] );
-        // printf( '%s', wpautop( $postarr['post_content'] ) );
-        // echo '<hr>';
-
         return $post_id;
     }
 
@@ -383,21 +380,4 @@ class WeDevs_FB_Group_To_WP {
 
 } // WeDevs_FB_Group_To_WP
 
-$baseplugin = WeDevs_FB_Group_To_WP::init();
-
-// WeDevs_FB_Group_To_WP::init()->trash_all();
-
-//On plugin activation schedule our daily database backup
-register_activation_hook( __FILE__, 'wi_create_daily_backup_schedule' );
-
-function wi_create_daily_backup_schedule(){
-
-
-}
-
-//Hook our function , wi_create_backup(), into the action fbgr2wp_import
-add_action( 'fbgr2wp_import', 'wi_create_backup' );
-
-function wi_create_backup(){
-  //Run code to create backup.
-}
+$wp_fb_import = WeDevs_FB_Group_To_WP::init();
