@@ -52,7 +52,6 @@ if ( is_admin() ) {
 class WeDevs_FB_Group_To_WP {
 
     private $post_type = 'fb_group_post';
-    private $settings_api;
 
     /**
      * Constructor for the WeDevs_FB_Group_To_WP class
@@ -82,6 +81,11 @@ class WeDevs_FB_Group_To_WP {
         }
     }
 
+    /**
+     * Registers our custom post type
+     * 
+     * @return void 
+     */
     public function register_post_type() {
         $labels = array(
             'name'                => _x( 'Group Posts', 'Post Type General Name', 'fbgr2wp' ),
@@ -182,22 +186,37 @@ class WeDevs_FB_Group_To_WP {
 
         die();
     }
-
-    function do_import() {
+    
+    function get_settings() {
         $option = get_option( 'fbgr2wp_settings', array() );
 
         // return if no configuration found
         if ( !isset( $option['app_id'] ) || !isset( $option['app_secret'] ) || !isset( $option['group_id'] ) ) {
-            return;
+            return false;
         }
 
         // no app id or app secret
         if ( empty( $option['app_id'] ) || empty( $option['app_secret'] ) ) {
-            return;
+            return false;
         }
 
         // no group id
         if ( empty( $option['group_id'] ) ) {
+            return false;
+        }
+        
+        return $option;
+    }
+
+    /**
+     * Do the actual import via cron
+     * 
+     * @return boolean
+     */
+    function do_import() {
+        $option = $this->get_settings();
+        
+        if ( !$option ) {
             return;
         }
 
@@ -205,32 +224,49 @@ class WeDevs_FB_Group_To_WP {
         $group_id = $option['group_id'];
         $url = 'https://graph.facebook.com/' . $group_id . '/feed/?access_token=' . $access_token;
 
-        $transient_key = 'g2w_' . $group_id;
-        $json_posts = get_transient( $transient_key );
+        $json_posts = $this->fetch_stream( $url );
 
-        if ( false === $json_posts ) {
-            self::log( 'debug', 'Fetching data from facebook: ' . $group_id );
-
-            $request = wp_remote_get( $url );
-            $json_posts = wp_remote_retrieve_body( $request );
-
-            if ( is_wp_error( $request ) || $request['response']['code'] != 200 ) {
-                self::log( 'error', 'Fetching failed with code: ' . $request['response']['code'] );
-                return false;
-            }
-
-            set_transient( $transient_key, $json_posts, (HOUR_IN_SECONDS - 60) );
-
-        } else {
-            self::log( 'debug', 'data pulled from cache: ' . $group_id );
+        if ( !$json_posts ) {
+            return;
         }
 
         $decoded = json_decode( $json_posts );
         $group_posts = $decoded->data;
         $paging = $decoded->paging;
 
-        // type: status, photo, link
+        $count = $this->insert_posts( $group_posts, $group_id );
+
+        printf( '%d posts imported', $count );
+    }
+    
+    function fetch_stream( $url ) {
+        self::log( 'debug', 'Fetching data from facebook' );
+        
+        $request = wp_remote_get( $url );
+        $json_posts = wp_remote_retrieve_body( $request );
+
+        if ( is_wp_error( $request ) ) {
+            self::log( 'error', 'Fetching failed with code. WP_Error' );
+            return;
+        }
+        
+        if ( $request['response']['code'] != 200 ) {
+            self::log( 'error', 'Fetching failed with code: ' . $request['response']['code'] );
+            return false;
+        }
+        
+        return $json_posts;
+    }
+    
+    /**
+     * Loop through the facebook feed and insert them
+     * 
+     * @param array $group_posts
+     * @return int
+     */
+    function insert_posts( $group_posts, $group_id ) {
         $count = 0;
+        
         if ( $group_posts ) {
             foreach ($group_posts as $fb_post) {
                 $post_id = $this->insert_post( $fb_post, $group_id );
@@ -240,10 +276,19 @@ class WeDevs_FB_Group_To_WP {
                 }
             }
         }
-
-        printf( '%d posts imported', $count );
+        
+        return $count;
     }
 
+    /**
+     * Check if the post already exists
+     * 
+     * Checks via guid. guid = fb post link
+     * 
+     * @global object $wpdb
+     * @param string $fb_link_id facebook post link
+     * @return boolean
+     */
     function is_post_exists( $fb_link_id ) {
         global $wpdb;
 
@@ -256,6 +301,13 @@ class WeDevs_FB_Group_To_WP {
         return false;
     }
 
+    /**
+     * Insert a new imported post from facebook
+     * 
+     * @param object $fb_post
+     * @param int $group_id
+     * @return int|WP_Error
+     */
     function insert_post( $fb_post, $group_id ) {
 
         // bail out if the post already exists
@@ -336,6 +388,11 @@ class WeDevs_FB_Group_To_WP {
         return $post_id;
     }
 
+    /**
+     * Trash all imported posts
+     * 
+     * @return void
+     */
     function trash_all() {
         $query = new WP_Query( array( 'post_type' => $this->post_type, 'posts_per_page' => -1 ) );
 
@@ -348,6 +405,13 @@ class WeDevs_FB_Group_To_WP {
         }
     }
 
+    /**
+     * Adds author, post and group link to the end of the post
+     * 
+     * @global object $post
+     * @param string $content
+     * @return string
+     */
     function the_content( $content ) {
         global $post;
 
