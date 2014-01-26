@@ -2,6 +2,7 @@
 
 A simple plugin that imports posts from facebook groups to your WordPress blog, hourly!
 
+> **Acknowledgement:**
 > You shouldn't use this plugin to pull posts from the groups you didn't created. The author doesn't take any responsibility for any kind of abuse.
 
 ### What it does & doesn't
