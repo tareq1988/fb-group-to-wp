@@ -38,6 +38,10 @@ License: GPL2
 // don't call the file directly
 if ( !defined( 'ABSPATH' ) ) exit;
 
+if ( is_admin() ) {
+    require_once dirname( __FILE__ ) . '/includes/admin.php';
+}
+
 // WeDevs_FB_Group_To_WP::init()->trash_all();
 
 /**
@@ -48,6 +52,7 @@ if ( !defined( 'ABSPATH' ) ) exit;
 class WeDevs_FB_Group_To_WP {
 
     private $post_type = 'fb_group_post';
+    private $settings_api;
 
     /**
      * Constructor for the WeDevs_FB_Group_To_WP class
@@ -68,14 +73,13 @@ class WeDevs_FB_Group_To_WP {
         add_action( 'init', array( $this, 'localization_setup' ) );
         add_action( 'init', array( $this, 'debug_run' ) );
         add_action( 'init', array( $this, 'register_post_type' ) );
-
         add_action( 'fbgr2wp_import', array( $this, 'do_import' ) );
 
         add_filter( 'the_content', array( $this, 'the_content' ) );
 
-        // Loads frontend scripts and styles
-        // add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
-
+        if ( is_admin() ) {
+            new WeDevs_FB_Group_To_WP_Admin();
+        }
     }
 
     public function register_post_type() {
@@ -169,51 +173,36 @@ class WeDevs_FB_Group_To_WP {
         load_plugin_textdomain( 'fbgr2wp', false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' );
     }
 
-    /**
-     * Enqueue admin scripts
-     *
-     * Allows plugin assets to be loaded.
-     *
-     * @uses wp_enqueue_script()
-     * @uses wp_localize_script()
-     * @uses wp_enqueue_style
-     */
-    public function enqueue_scripts() {
-
-        /**
-         * All styles goes here
-         */
-        wp_enqueue_style( 'fbgr2wp-styles', plugins_url( 'css/style.css', __FILE__ ), false, date( 'Ymd' ) );
-
-        /**
-         * All scripts goes here
-         */
-        wp_enqueue_script( 'fbgr2wp-scripts', plugins_url( 'js/script.js', __FILE__ ), array( 'jquery' ), false, true );
-
-
-        /**
-         * Example for setting up text strings from Javascript files for localization
-         *
-         * Uncomment line below and replace with proper localization variables.
-         */
-        // $translation_array = array( 'some_string' => __( 'Some string to translate', 'fbgr2wp' ), 'a_value' => '10' );
-        // wp_localize_script( 'base-plugin-scripts', 'fbgr2wp', $translation_array ) );
-
-    }
-
     function debug_run() {
         if ( !isset( $_GET['fb2wp_test'] ) ) {
             return;
         }
 
-        do_import();
+        $this->do_import();
 
         die();
     }
 
     function do_import() {
-        $access_token = '226916994002335|ks3AFvyAOckiTA1u_aDoI4HYuuw';
-        $group_id = '241884142616448';
+        $option = get_option( 'fbgr2wp_settings', array() );
+
+        // return if no configuration found
+        if ( !isset( $option['app_id'] ) || !isset( $option['app_secret'] ) || !isset( $option['group_id'] ) ) {
+            return;
+        }
+
+        // no app id or app secret
+        if ( empty( $option['app_id'] ) || empty( $option['app_secret'] ) ) {
+            return;
+        }
+
+        // no group id
+        if ( empty( $option['group_id'] ) ) {
+            return;
+        }
+
+        $access_token = $option['app_id'] . '|' . $option['app_secret'];
+        $group_id = $option['group_id'];
         $url = 'https://graph.facebook.com/' . $group_id . '/feed/?access_token=' . $access_token;
 
         $transient_key = 'g2w_' . $group_id;
