@@ -74,6 +74,8 @@ class WeDevs_FB_Group_To_WP {
         add_action( 'init', array( $this, 'register_post_type' ) );
         add_action( 'fbgr2wp_import', array( $this, 'do_import' ) );
 
+        add_filter( 'cron_schedules', array($this, 'cron_schedules') );
+
         add_filter( 'the_content', array( $this, 'the_content' ) );
 
         if ( is_admin() ) {
@@ -155,7 +157,7 @@ class WeDevs_FB_Group_To_WP {
      */
     public function activate() {
         if ( false == wp_next_scheduled( 'fbgr2wp_import' ) ){
-            wp_schedule_event( time(), 'hourly', 'fbgr2wp_import' );
+            wp_schedule_event( time(), 'half-hour', 'fbgr2wp_import' );
         }
     }
 
@@ -177,8 +179,32 @@ class WeDevs_FB_Group_To_WP {
         load_plugin_textdomain( 'fbgr2wp', false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' );
     }
 
+    /**
+     * Add new cron schedule
+     *
+     * @param  array $schedules
+     * @return array
+     */
+    function cron_schedules( $schedules ) {
+        $schedules['half-hour'] = array(
+            'interval' => MINUTE_IN_SECONDS * 30,
+            'display' => __( 'In every 30 Minutes', 'fbgr2wp' )
+        );
+
+        return $schedules;
+    }
+
+    /**
+     * Manually trigger the cron
+     *
+     * @return void
+     */
     function debug_run() {
         if ( !isset( $_GET['fb2wp_test'] ) ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
             return;
         }
 
@@ -187,6 +213,11 @@ class WeDevs_FB_Group_To_WP {
         die();
     }
 
+    /**
+     * Get the facebook settings
+     *
+     * @return array
+     */
     function get_settings() {
         $option = get_option( 'fbgr2wp_settings', array() );
 
@@ -372,9 +403,11 @@ class WeDevs_FB_Group_To_WP {
             return $post_id;
         }
 
+        $option = get_option( 'fbgr2wp_settings', array( 'post_status' => 'publish' ) );
+
         $postarr = array(
             'post_type'   => $this->post_type,
-            'post_status' => 'publish',
+            'post_status' => $option['post_status'],
             'post_author' => 1,
             'post_date'   => gmdate( 'Y-m-d H:i:s', strtotime( $fb_post->created_time ) ),
             'guid'        => $fb_post->actions[0]->link
