@@ -13,10 +13,8 @@ A simple plugin that imports posts from facebook groups to your WordPress blog, 
 * Runs every half hour via WordPress cron system
 * Doesn't import historical posts yet
 * Adds group id, author name and ID, post link as post meta
+* Import historical (paginated) posts. To do this, go to `http://example.com/?fb2wp_hist` and it'll auto automatically start the import process. Only admins can run this task.
 
-### Room for improvements
-
-* Import historical (paginated) posts
 
 ## Contribute
 If you want to contribute on this project, you are more than welcome.
