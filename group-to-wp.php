@@ -70,8 +70,10 @@ class WeDevs_FB_Group_To_WP {
 
         // Localize our plugin
         add_action( 'init', array( $this, 'localization_setup' ) );
-        add_action( 'init', array( $this, 'debug_run' ) );
         add_action( 'init', array( $this, 'register_post_type' ) );
+
+        add_action( 'init', array( $this, 'debug_run' ) );
+        add_action( 'init', array( $this, 'historical_import' ) );
         add_action( 'fbgr2wp_import', array( $this, 'do_import' ) );
 
         add_filter( 'cron_schedules', array($this, 'cron_schedules') );
@@ -240,6 +242,92 @@ class WeDevs_FB_Group_To_WP {
     }
 
     /**
+     * Do a historical or paginated import
+     *
+     * This is a clever approach to import all the posts from a group.
+     * When you visit the url http://example.com/?fb2wp_hist, it'll start it's process.
+     *
+     * The plugin will start from the recent to next page without any interaction from
+     * your end. It'll build the url and reload the page in every 5/10 seconds and impport
+     * the next posts.
+     *
+     * As it doesn't do any blocking in the server, your server will not be overloaded
+     * and any timeout wouldn't happen.
+     *
+     * @return void
+     */
+    function historical_import() {
+
+        if ( ! isset( $_GET['fb2wp_hist'] ) ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $root_page    = add_query_arg( array( 'fb2wp_hist' => '' ), home_url() );
+        $page_num     = isset( $_GET['page'] ) ? intval( $_GET['page'] ) : 1;
+
+
+        $option       = $this->get_settings();
+        $access_token = $option['app_id'] . '|' . $option['app_secret'];
+        $group_id     = $option['group_id'];
+        $limit        = 25;
+
+        $fb_url       = 'https://graph.facebook.com/' . $group_id . '/feed/?limit=' . $limit . '&access_token=' . $access_token;
+
+        // build the query URL for next page
+        if ( $page_num > 1 ) {
+            $until        = isset( $_GET['until'] ) ? $_GET['until'] : '';
+            $paging_token = isset( $_GET['paging_token'] ) ? $_GET['paging_token'] : '';
+
+            $fb_url = add_query_arg( array(
+                'until'          => $until,
+                '__paging_token' => $paging_token
+            ), $fb_url );
+        }
+
+        // do the import
+        $json_posts  = $this->fetch_stream( $fb_url );
+        $decoded     = json_decode( $json_posts );
+        $group_posts = $decoded->data;
+
+        $count       = $this->insert_posts( $group_posts, $group_id );
+
+        // show debug info
+        printf( '<strong>%d</strong> posts imported<br>', $count );
+        printf( 'Showing Page: %d<br>', $page_num );
+        printf( 'Per Page: %d<br>', $limit );
+        printf( 'Group ID: %d<br>', $group_id );
+
+        // Build the next page URL
+        // Reload the page automatically after few seconds
+        // and do it's thing without killing the server
+        if ( $page_num && property_exists( $decoded, 'paging' ) ) {
+
+            $paging = $decoded->paging;
+            parse_str( $paging->next, $next_page );
+
+            $next_page_url = add_query_arg( array(
+                'page'         => ($page_num + 1),
+                'until'        => $next_page['until'],
+                'paging_token' => $next_page['__paging_token']
+            ), $root_page );
+
+            ?>
+            <script type="text/javascript">
+                setTimeout(function(){
+                    window.location.href = '<?php echo $next_page_url; ?>';
+                }, 5000);
+            </script>
+            <?php
+        }
+
+        exit;
+    }
+
+    /**
      * Do the actual import via cron
      *
      * @return boolean
@@ -252,10 +340,10 @@ class WeDevs_FB_Group_To_WP {
         }
 
         $access_token = $option['app_id'] . '|' . $option['app_secret'];
-        $group_id = $option['group_id'];
-        $url = 'https://graph.facebook.com/' . $group_id . '/feed/?access_token=' . $access_token;
+        $group_id     = $option['group_id'];
+        $url          = 'https://graph.facebook.com/' . $group_id . '/feed/?limit=30&access_token=' . $access_token;
 
-        $json_posts = $this->fetch_stream( $url );
+        $json_posts   = $this->fetch_stream( $url );
 
         if ( !$json_posts ) {
             return;
