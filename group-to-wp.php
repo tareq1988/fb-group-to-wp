@@ -501,7 +501,7 @@ class WeDevs_FB_Group_To_WP {
             'post_type'   => $this->post_type,
             'post_status' => $option['post_status'],
             'post_author' => 1,
-            'post_date'   => gmdate( 'Y-m-d H:i:s', strtotime( $fb_post->created_time ) ),
+            'post_date'   => gmdate( 'Y-m-d H:i:s', ( strtotime( $fb_post->created_time ) ) + ( get_option( 'gmt_offset' ) * HOUR_IN_SECONDS ) ),
             'guid'        => $fb_post->actions[0]->link
         );
 
@@ -585,7 +585,7 @@ class WeDevs_FB_Group_To_WP {
             'comment_author'     => $fb_comment->from->name,
             'comment_author_url' => 'https://facebook.com/' . $fb_comment->from->id,
             'comment_content'    => $fb_comment->message,
-            'comment_date'       => gmdate( 'Y-m-d H:i:s', strtotime( $fb_comment->created_time ) ),
+            'comment_date'       => gmdate( 'Y-m-d H:i:s', ( strtotime( $fb_comment->created_time ) + ( get_option( 'gmt_offset' ) * HOUR_IN_SECONDS ) ) ),
             'comment_approved'   => 1,
             'comment_type'       => 'fb_group_post'
         );
