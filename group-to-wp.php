@@ -578,7 +578,7 @@ class WeDevs_FB_Group_To_WP {
 
         $commentarr = array(
             'comment_post_ID'    => $post_id,
-            'comment_author'     => $fb_comment->from->name,,
+            'comment_author'     => $fb_comment->from->name,
             'comment_author_url' => 'https://facebook.com/' . $fb_comment->from->id,
             'comment_content'    => $fb_comment->message,
             'comment_date'       => gmdate( 'Y-m-d H:i:s', strtotime( $fb_comment->created_time ) ),
