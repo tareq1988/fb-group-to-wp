@@ -78,6 +78,9 @@ class WeDevs_FB_Group_To_WP {
 
         add_filter( 'cron_schedules', array($this, 'cron_schedules') );
 
+        add_filter( 'get_avatar_comment_types', array( $this, 'avatar_comment_type' ) );
+        add_filter( 'get_avatar', array( $this, 'get_avatar' ), 10, 3 );
+
         add_filter( 'the_content', array( $this, 'the_content' ) );
 
         if ( is_admin() ) {
@@ -651,6 +654,49 @@ class WeDevs_FB_Group_To_WP {
         }
 
         return $content;
+    }
+
+    /**
+     * Add support for avatar in fb_group_post comment type
+     *
+     * @param  array $types
+     * @return array
+     */
+    function avatar_comment_type( $types ) {
+        $types[] = 'fb_group_post';
+
+        return $types;
+    }
+
+    /**
+     * Adds avatar image from facebook in comments
+     *
+     * @param  string $avatar
+     * @param  string $id_or_email
+     * @param  int $size
+     * @return string
+     */
+    function get_avatar( $avatar, $id_or_email, $size ) {
+
+        // it's not a comment
+        if ( ! is_object( $id_or_email ) ) {
+            return $avatar;
+        }
+
+        if ( empty( $id_or_email->comment_type ) || ! $id_or_email->comment_type == 'fb_group_post' ) {
+            return $avatar;
+        }
+
+        $profile_id = get_comment_meta( $id_or_email->comment_ID, '_fb_author_id', true );
+
+        if ( ! $profile_id ) {
+            return $avatar;
+        }
+
+        $image  = sprintf( 'http://graph.facebook.com/%1$d/picture?type=square&height=%2$s&width=%2$s', $profile_id, $size );
+        $avatar = sprintf( '<img src="%1$s" class="avatar avatar-44 photo avatar-default" height="%2$s" width="%2$s" />', $image, $size );
+
+        return $avatar;
     }
 
     /**
