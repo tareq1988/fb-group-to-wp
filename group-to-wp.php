@@ -577,16 +577,17 @@ class WeDevs_FB_Group_To_WP {
         }
 
         $commentarr = array(
-            'comment_post_ID'  => $post_id,
-            'comment_author'   => $fb_comment->from->name,
-            'comment_content'  => $fb_comment->message,
-            'comment_date'     => gmdate( 'Y-m-d H:i:s', strtotime( $fb_comment->created_time ) ),
-            'comment_approved' => 1,
+            'comment_post_ID'    => $post_id,
+            'comment_author'     => $fb_comment->from->name,,
+            'comment_author_url' => 'https://facebook.com/' . $fb_comment->from->id,
+            'comment_content'    => $fb_comment->message,
+            'comment_date'       => gmdate( 'Y-m-d H:i:s', strtotime( $fb_comment->created_time ) ),
+            'comment_approved'   => 1,
+            'comment_type'       => 'fb_group_post'
         );
 
         $meta = array(
             '_fb_author_id'   => $fb_comment->from->id,
-            '_fb_author_name' => $fb_comment->from->name,
             '_fb_comment_id'  => $fb_comment->id
         );
 
