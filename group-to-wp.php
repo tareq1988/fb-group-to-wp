@@ -121,7 +121,7 @@ class WeDevs_FB_Group_To_WP {
             'label'               => __( 'fb_group_post', 'fbgr2wp' ),
             'description'         => __( 'WordPress Group Post', 'fbgr2wp' ),
             'labels'              => $labels,
-            'supports'            => array( 'title', 'editor', 'post-formats', ),
+            'supports'            => array( 'title', 'editor', 'post-formats', 'comments' ),
             'taxonomies'          => array( 'category', 'post_tag' ),
             'hierarchical'        => false,
             'public'              => true,
