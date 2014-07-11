@@ -683,7 +683,7 @@ class WeDevs_FB_Group_To_WP {
             return $avatar;
         }
 
-        if ( empty( $id_or_email->comment_type ) || ! $id_or_email->comment_type == 'fb_group_post' ) {
+        if ( empty( $id_or_email->comment_type ) || $id_or_email->comment_type != 'fb_group_post' ) {
             return $avatar;
         }
 
