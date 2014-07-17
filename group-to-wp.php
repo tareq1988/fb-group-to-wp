@@ -277,7 +277,7 @@ class WeDevs_FB_Group_To_WP {
         $option       = $this->get_settings();
         $access_token = $option['app_id'] . '|' . $option['app_secret'];
         $group_id     = $option['group_id'];
-        $limit        = 25;
+        $limit        = isset( $option['limit'] ) ? intval( $option['limit'] ) : 30;
 
         $fb_url       = 'https://graph.facebook.com/' . $group_id . '/feed/?limit=' . $limit . '&access_token=' . $access_token;
 
@@ -345,7 +345,8 @@ class WeDevs_FB_Group_To_WP {
 
         $access_token = $option['app_id'] . '|' . $option['app_secret'];
         $group_id     = $option['group_id'];
-        $url          = 'https://graph.facebook.com/' . $group_id . '/feed/?limit=30&access_token=' . $access_token;
+        $limit        = isset( $option['limit'] ) ? intval( $option['limit'] ) : 30;
+        $url          = 'https://graph.facebook.com/' . $group_id . '/feed/?limit=' . $limit . '&access_token=' . $access_token;
 
         $json_posts   = $this->fetch_stream( $url );
 
@@ -356,8 +357,6 @@ class WeDevs_FB_Group_To_WP {
         $decoded     = json_decode( $json_posts );
         $group_posts = $decoded->data;
         $paging      = $decoded->paging;
-
-        // var_dump( $group_posts ); die();
 
         $count       = $this->insert_posts( $group_posts, $group_id );
 
@@ -495,14 +494,19 @@ class WeDevs_FB_Group_To_WP {
             return $post_id;
         }
 
-        $option = get_option( 'fbgr2wp_settings', array( 'post_status' => 'publish' ) );
+        $option = get_option( 'fbgr2wp_settings', array(
+            'post_status'    => 'publish',
+            'comment_status' => 'open'
+        ) );
 
         $postarr = array(
-            'post_type'   => $this->post_type,
-            'post_status' => $option['post_status'],
-            'post_author' => 1,
-            'post_date'   => gmdate( 'Y-m-d H:i:s', ( strtotime( $fb_post->created_time ) ) + ( get_option( 'gmt_offset' ) * HOUR_IN_SECONDS ) ),
-            'guid'        => $fb_post->actions[0]->link
+            'post_type'      => $this->post_type,
+            'post_status'    => $option['post_status'],
+            'comment_status' => isset( $option['comment_status'] ) ? $option['comment_status'] : 'open',
+            'ping_status'    => isset( $option['comment_status'] ) ? $option['comment_status'] : 'open',
+            'post_author'    => 1,
+            'post_date'      => gmdate( 'Y-m-d H:i:s', ( strtotime( $fb_post->created_time ) ) + ( get_option( 'gmt_offset' ) * HOUR_IN_SECONDS ) ),
+            'guid'           => $fb_post->actions[0]->link
         );
 
         $meta = array(

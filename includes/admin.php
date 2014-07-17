@@ -30,7 +30,7 @@ class WeDevs_FB_Group_To_WP_Admin {
     }
 
     function admin_menu() {
-        add_options_page( __( 'Facebook Group to WordPress Importer', 'fbgr2wp' ), __( 'FB Group to WP', 'fbgr2wp' ), 'manage_options', 'fbgr2wp-settings', array( $this, 'settings_page' ) );
+        add_submenu_page( 'edit.php?post_type=fb_group_post', __( 'Facebook Group to WordPress Importer', 'fbgr2wp' ), __( 'Settings', 'fbgr2wp' ), 'manage_options', 'fbgr2wp-settings', array( $this, 'settings_page' ) );
     }
 
     function get_settings_sections() {
@@ -71,13 +71,29 @@ class WeDevs_FB_Group_To_WP_Admin {
                 'desc'    => __( 'Add your facebook group ID. e.g: 241884142616448' )
             ),
             array(
+                'name'    => 'limit',
+                'label'   => __( 'List per Query', 'fbgr2wp'),
+                'default' => '30',
+                'desc'    => __( 'Posts fetched from Facebook in a single query' )
+            ),
+            array(
                 'name'    => 'post_status',
                 'label'   => __( 'Default Post Status', 'fbgr2wp'),
                 'default' => 'publish',
                 'type'    => 'select',
                 'options' => get_post_statuses(),
                 'desc'    => __( 'What will be the post status when a post is imported/created' )
-            )
+            ),
+            array(
+                'name'    => 'comment_status',
+                'label'   => __( 'Default Comment Status', 'fbgr2wp'),
+                'default' => 'open',
+                'type'    => 'select',
+                'options' => array(
+                    'open'   => __( 'Open', 'fbgr2wp' ),
+                    'closed' => __( 'Closed', 'fbgr2wp' )
+                ),
+            ),
         );
 
         return $settings_fields;
