@@ -519,17 +519,17 @@ class WeDevs_FB_Group_To_WP {
 
         switch ($fb_post->type) {
             case 'status':
-                $postarr['post_title']   = wp_trim_words( strip_tags( $fb_post->message ), 6, '...' );
+                $postarr['post_title']   = wp_trim_words( strip_tags( $fb_post->message ), 10, '...' );
                 $postarr['post_content'] = $fb_post->message;
                 break;
 
             case 'photo':
 
                 if ( !isset( $fb_post->message ) ) {
-                    $postarr['post_title']   = wp_trim_words( strip_tags( $fb_post->story ), 6, '...' );
+                    $postarr['post_title']   = wp_trim_words( strip_tags( $fb_post->story ), 10, '...' );
                     $postarr['post_content'] = sprintf( '<p>%1$s</p> <div class="image-wrap"><img src="%2$s" alt="%1$s" /></div>', $fb_post->story, $fb_post->picture );
                 } else {
-                    $postarr['post_title']   = wp_trim_words( strip_tags( $fb_post->message ), 6, '...' );
+                    $postarr['post_title']   = wp_trim_words( strip_tags( $fb_post->message ), 10, '...' );
                     $postarr['post_content'] = sprintf( '<p>%1$s</p> <div class="image-wrap"><img src="%2$s" alt="%1$s" /></div>', $fb_post->message, $fb_post->picture );
                 }
 
@@ -538,7 +538,7 @@ class WeDevs_FB_Group_To_WP {
             case 'link':
                 parse_str( $fb_post->picture, $parsed_link );
 
-                $postarr['post_title'] = wp_trim_words( strip_tags( $fb_post->message ), 6, '...' );
+                $postarr['post_title'] = wp_trim_words( strip_tags( $fb_post->message ), 10, '...' );
                 $postarr['post_content'] = '<p>' . $fb_post->message . '</p>';
 
                 if ( !empty( $parsed_link['url']) ) {
