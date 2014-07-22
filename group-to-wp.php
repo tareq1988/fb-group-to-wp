@@ -655,6 +655,8 @@ class WeDevs_FB_Group_To_WP {
             $custom_data .= sprintf( '<a href="https://facebook.com/groups/%s" target="_blank">%s</a>', $group_id, __( 'View Group', 'fbgr2wp' ) );
             $custom_data .= '</div>';
 
+            $custom_data = apply_filters( 'fbgr2wp_content', $custom_data, $post, $author_id, $author_name, $link, $group_id );
+
             $content .= $custom_data;
         }
 
