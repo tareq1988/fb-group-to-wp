@@ -12,7 +12,7 @@ Pull your facebook group feed to WordPress
 
 == Description ==
 
-A simple plugin that imports posts from a **public** facebook groups to your WordPress blog, every half hour!
+A simple plugin that imports posts from **public** facebook groups to your WordPress blog, every half hour!
 
 = What it does & doesn't =
 
