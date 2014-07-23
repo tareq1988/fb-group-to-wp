@@ -33,6 +33,12 @@ Brought to you by [Tareq Hasan](http://tareq.wedevs.com) from [weDevs](http://we
 
 Extract the zip file and just drop the contents in the wp-content/plugins/ directory of your WordPress installation and then activate the Plugin from Plugins page.
 
+* [Create](https://developers.facebook.com/?ref=pf) a facebook app
+* Fillup facebook app ID and secret
+* Find the **numeric** group ID for your group. Use [this tool](http://lookup-id.com/) if needed.
+* Insert your group ID in the settings
+* Now you are done. It'll pull posts automatically.
+
 == Frequently Asked Questions ==
 
 Nothing here yet
