@@ -9,6 +9,7 @@ Author URI: http://tareq.wedevs.com/
 License: GPL2
 */
 
+
 /**
  * Copyright (c) 2014 Tareq Hasan (email: tareq@wedevs.com). All rights reserved.
  *
@@ -121,7 +122,7 @@ class WeDevs_FB_Group_To_WP {
             'label'               => __( 'fb_group_post', 'fbgr2wp' ),
             'description'         => __( 'WordPress Group Post', 'fbgr2wp' ),
             'labels'              => $labels,
-            'supports'            => array( 'title', 'editor', 'post-formats', 'comments' ),
+            'supports'            => array( 'title', 'editor', 'post-formats', 'comments', 'thumbnail' ),
             'taxonomies'          => array( 'category', 'post_tag' ),
             'hierarchical'        => false,
             'public'              => true,
@@ -304,6 +305,7 @@ class WeDevs_FB_Group_To_WP {
         printf( 'Showing Page: %d<br>', $page_num );
         printf( 'Per Page: %d<br>', $limit );
         printf( 'Group ID: %d<br>', $group_id );
+        printf( 'URL: %s<br>', $fb_url );
 
         // Build the next page URL
         // Reload the page automatically after few seconds
@@ -490,7 +492,7 @@ class WeDevs_FB_Group_To_WP {
     function insert_post( $fb_post, $group_id ) {
 
         // bail out if the post already exists
-        if ( $post_id = $this->is_post_exists( $fb_post->actions[0]->link ) ) {
+        if ( $post_id = $this->is_post_exists( $fb_post->link ) ) {
             return $post_id;
         }
 
@@ -506,36 +508,73 @@ class WeDevs_FB_Group_To_WP {
             'ping_status'    => isset( $option['comment_status'] ) ? $option['comment_status'] : 'open',
             'post_author'    => 1,
             'post_date'      => gmdate( 'Y-m-d H:i:s', ( strtotime( $fb_post->created_time ) ) + ( get_option( 'gmt_offset' ) * HOUR_IN_SECONDS ) ),
-            'guid'           => $fb_post->actions[0]->link
+            'guid'           => $fb_post->link
         );
 
         $meta = array(
             '_fb_author_id'   => $fb_post->from->id,
             '_fb_author_name' => $fb_post->from->name,
-            '_fb_link'        => $fb_post->actions[0]->link,
+            '_fb_link'        => $fb_post->link,
             '_fb_group_id'    => $group_id,
             '_fb_post_id'     => $fb_post->id
         );
 
         switch ($fb_post->type) {
             case 'status':
+            	if ( $option['import_status'] == 'off' ) {
+	            	return $post_id;
+            	}
+
                 $postarr['post_title']   = wp_trim_words( strip_tags( $fb_post->message ), 10, '...' );
                 $postarr['post_content'] = $fb_post->message;
                 break;
 
             case 'photo':
+            	if ( $option['import_photo'] == 'off' ) {
+	            	return $post_id;
+            	}
 
+				// Get full size photo from Facebook
+				$access_token = $option['app_id'] . '|' . $option['app_secret'];
+				$imgdata_url  = 'https://graph.facebook.com/v2.0/' . $fb_post->object_id . '?access_token=' . $access_token;
+				$json_image   = $this->fetch_stream( $imgdata_url );
+				
+				// No image data recieved? Skip this post
+		        if ( !$json_image ) {
+		            return $post_id;
+		        }
+		        
+				$imgdata = json_decode( $json_image );
+				
+				// Find max resolution image
+				// Note, default height may not exist in available images, so we pick the largest
+				$url = "";
+				$maxheight = 0;
+				foreach($imgdata->images as $image) {
+					if($image->height > $maxheight) {
+						$maxheight = $image->height;
+						$url = $image->source;
+					}
+				}
+
+				// Create a WP attachment from an URL
+				$attachment = $this->urlToAttachment( $url, $imgdata->id );
+
+				// Store post
                 if ( !isset( $fb_post->message ) ) {
                     $postarr['post_title']   = wp_trim_words( strip_tags( $fb_post->story ), 10, '...' );
-                    $postarr['post_content'] = sprintf( '<p>%1$s</p> <div class="image-wrap"><img src="%2$s" alt="%1$s" /></div>', $fb_post->story, $fb_post->picture );
+                    $postarr['post_content'] = sprintf( '<p>%1$s</p> <div class="image-wrap"><img src="%2$s" alt="%3$s" /></div>', $fb_post->story, $attachment->url, 'image' );
                 } else {
                     $postarr['post_title']   = wp_trim_words( strip_tags( $fb_post->message ), 10, '...' );
-                    $postarr['post_content'] = sprintf( '<p>%1$s</p> <div class="image-wrap"><img src="%2$s" alt="%1$s" /></div>', $fb_post->message, $fb_post->picture );
+                    $postarr['post_content'] = sprintf( '<p>%1$s</p> <div class="image-wrap"><img src="%2$s" alt="%3$s" /></div>', $fb_post->message, $attachment->url, 'image' );
                 }
-
                 break;
 
             case 'link':
+            	if ( $option['import_link'] == 'off' ) {
+	            	return $post_id;
+            	}
+
                 parse_str( $fb_post->picture, $parsed_link );
 
                 $postarr['post_title'] = wp_trim_words( strip_tags( $fb_post->message ), 10, '...' );
@@ -555,6 +594,9 @@ class WeDevs_FB_Group_To_WP {
         }
 
         $post_id = wp_insert_post( $postarr );
+        if( isset($attachment) ) {
+	        set_post_thumbnail( $post_id, $attachment->id );
+        }
 
         if ( $post_id && !is_wp_error( $post_id ) ) {
 
@@ -569,6 +611,64 @@ class WeDevs_FB_Group_To_WP {
 
         return $post_id;
     }
+
+
+    /**
+     * Download a file and store it as a WP attachment
+     *
+     * @param  string $url
+     * @return stdobj
+     */
+    function urlToAttachment( $url, $fbid ) {
+		// Download image
+		$ch = curl_init();
+		
+		curl_setopt($ch, CURLOPT_URL, $url);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)');
+		
+		$image_data = curl_exec($ch);
+		
+		curl_close($ch);
+
+		// Get file extension
+		$remotepath = explode("?",$url);
+		$remotename = basename($remotepath[0]);
+		$ext = explode(".",$remotename)[1];
+		
+		// Store image in WP upload folder
+		$upload_dir = wp_upload_dir();
+		$filename = 'fbimg_' . $fbid . '.' . $ext;
+
+		if(wp_mkdir_p($upload_dir['path'])) {
+			$file = $upload_dir['path'] . '/' . $filename;
+		}
+		else {
+			$file = $upload_dir['basedir'] . '/' . $filename;
+		}
+		file_put_contents($file, $image_data);
+
+		// Create post attachment with image
+		$wp_filetype = wp_check_filetype($filename, null );
+		$attachment = array(
+		    'post_mime_type' => $wp_filetype['type'],
+		    'post_title' => sanitize_file_name($filename),
+		    'post_content' => '',
+		    'post_status' => 'inherit'
+		);
+		
+		$attach_id = wp_insert_attachment( $attachment, $file, 0 );
+		require_once(ABSPATH . 'wp-admin/includes/image.php');
+		$attach_data = wp_generate_attachment_metadata( $attach_id, $file );
+		wp_update_attachment_metadata( $attach_id, $attach_data );
+		
+		return (object) [
+			'id'	=> $attach_id,
+			'path'	=> $file,
+			'url'	=> $upload_dir['url'] . '/' . $filename
+		];
+    }
+    
 
     /**
      * Insert a comment in a post
@@ -638,6 +738,7 @@ class WeDevs_FB_Group_To_WP {
      */
     function the_content( $content ) {
         global $post;
+        if(!is_single($post)) return $content;
 
         if ( $post->post_type == $this->post_type ) {
             $author_id   = get_post_meta( $post->ID, '_fb_author_id', true );
@@ -648,11 +749,9 @@ class WeDevs_FB_Group_To_WP {
             $author_link = sprintf( '<a href="https://facebook.com/profile.php?id=%d" target="_blank">%s</a>', $author_id, $author_name );
 
             $custom_data = '<div class="fb-group-meta">';
-            $custom_data .= sprintf( __( 'Posted by %s', 'fbgr2wp' ), $author_link );
+            $custom_data .= sprintf( __( 'Posted in %s', 'fbgr2wp' ), $author_link );
             $custom_data .= '<span class="sep"> | </span>';
-            $custom_data .= sprintf( '<a href="%s" target="_blank">%s</a>', $link, __( 'View Post', 'fbgr2wp' ) );
-            $custom_data .= '<span class="sep"> | </span>';
-            $custom_data .= sprintf( '<a href="https://facebook.com/groups/%s" target="_blank">%s</a>', $group_id, __( 'View Group', 'fbgr2wp' ) );
+            $custom_data .= sprintf( '<a href="%s" target="_blank">%s</a>', $link, __( 'View post', 'fbgr2wp' ) );
             $custom_data .= '</div>';
 
             $custom_data = apply_filters( 'fbgr2wp_content', $custom_data, $post, $author_id, $author_name, $link, $group_id );
