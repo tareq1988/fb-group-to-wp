@@ -749,9 +749,9 @@ class WeDevs_FB_Group_To_WP {
             $author_link = sprintf( '<a href="https://facebook.com/profile.php?id=%d" target="_blank">%s</a>', $author_id, $author_name );
 
             $custom_data = '<div class="fb-group-meta">';
-            $custom_data .= sprintf( __( 'Posted in %s', 'fbgr2wp' ), $author_link );
+            $custom_data .= sprintf( __( 'Postad i %s', 'fbgr2wp' ), $author_link );
             $custom_data .= '<span class="sep"> | </span>';
-            $custom_data .= sprintf( '<a href="%s" target="_blank">%s</a>', $link, __( 'View post', 'fbgr2wp' ) );
+            $custom_data .= sprintf( '<a href="%s" target="_blank">%s</a>', $link, __( 'Visa post', 'fbgr2wp' ) );
             $custom_data .= '</div>';
 
             $custom_data = apply_filters( 'fbgr2wp_content', $custom_data, $post, $author_id, $author_name, $link, $group_id );
@@ -799,7 +799,7 @@ class WeDevs_FB_Group_To_WP {
             return $avatar;
         }
 
-        $image  = sprintf( 'http://graph.facebook.com/%1$d/picture?type=square&height=%2$s&width=%2$s', $profile_id, $size );
+        $image  = sprintf( '//graph.facebook.com/%1$d/picture?type=square&height=%2$s&width=%2$s', $profile_id, $size );
         $avatar = sprintf( '<img src="%1$s" class="avatar avatar-44 photo avatar-default" height="%2$s" width="%2$s" />', $image, $size );
 
         return $avatar;
