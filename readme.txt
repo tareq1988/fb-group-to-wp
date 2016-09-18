@@ -1,9 +1,9 @@
 === Facebook Group to WordPress ===
 Contributors: tareq1988
-Donate Link: http://tareq.wedevs.com/donate/
+Donate Link: https://tareq.co/donate/
 Tags: facebook, group, cron, post, thread, wordpress, import, comments
 Requires at least: 3.6
-Tested up to: 3.9.1
+Tested up to: 4.6.1
 Stable tag: trunk
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
