@@ -343,11 +343,12 @@ class WeDevs_FB_Group_To_WP {
             return;
         }
 
+        $api_version  = 'v2.7';
         $access_token = $option['app_id'] . '|' . $option['app_secret'];
         $group_id     = $option['group_id'];
         $limit        = isset( $option['limit'] ) ? intval( $option['limit'] ) : 30;
         $fields       = array( 'message', 'status_type', 'full_picture', 'type', 'permalink_url', 'id', 'from', 'updated_time', 'created_time', 'description', 'comments' );
-        $url          = 'https://graph.facebook.com/' . $group_id . '/feed/?fields=' . implode( ',', $fields ) . '&limit=' . $limit . '&access_token=' . $access_token;
+        $url          = sprintf( 'https://graph.facebook.com/%s/%d/feed/?fields=%s&limit=%d&access_token=%s', $api_version, $group_id, implode( ',', $fields ), $limit, $access_token );
 
         $json_posts   = $this->fetch_stream( $url );
 
