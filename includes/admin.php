@@ -94,6 +94,24 @@ class WeDevs_FB_Group_To_WP_Admin {
                     'closed' => __( 'Closed', 'fbgr2wp' )
                 ),
             ),
+            array(
+                'name'    => 'import_status',
+                'label'   => __( 'Import status updates', 'fbgr2wp'),
+                'default' => 'on',
+                'type'    => 'checkbox',
+            ),
+            array(
+                'name'    => 'import_link',
+                'label'   => __( 'Import links', 'fbgr2wp'),
+                'default' => 'on',
+                'type'    => 'checkbox',
+            ),
+            array(
+                'name'    => 'import_photo',
+                'label'   => __( 'Import images', 'fbgr2wp'),
+                'default' => 'on',
+                'type'    => 'checkbox',
+            ),
         );
 
         return $settings_fields;
