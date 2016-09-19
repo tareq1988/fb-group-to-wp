@@ -53,6 +53,11 @@ Nothing here yet
 
 == Changelog ==
 
+= 1.0 - 19 Sep 2016 =
+
+- [fix] Graph API v2.7 compatibility
+- [new] Post thumbnail support added
+
 = 0.1 =
 Initial version released
 

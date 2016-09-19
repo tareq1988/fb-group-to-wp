@@ -2,10 +2,10 @@
 /*
 Plugin Name: Facebook Group to WordPress importer
 Plugin URI: http://tareq.wedevs.com/
-Description: Import facebook group posts to WordPress
-Version: 0.2
+Description: Import facebook group posts into WordPress
+Version: 1.0
 Author: Tareq Hasan
-Author URI: http://tareq.wedevs.com/
+Author URI: https://tareq.co/
 License: GPL2
 */
 
