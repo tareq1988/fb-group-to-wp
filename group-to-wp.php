@@ -2,10 +2,10 @@
 /*
 Plugin Name: Facebook Group to WordPress importer
 Plugin URI: http://tareq.wedevs.com/
-Description: Import facebook group posts to WordPress
-Version: 0.2
+Description: Import facebook group posts into WordPress
+Version: 1.0
 Author: Tareq Hasan
-Author URI: http://tareq.wedevs.com/
+Author URI: https://tareq.co/
 License: GPL2
 */
 
@@ -121,7 +121,7 @@ class WeDevs_FB_Group_To_WP {
             'label'               => __( 'fb_group_post', 'fbgr2wp' ),
             'description'         => __( 'WordPress Group Post', 'fbgr2wp' ),
             'labels'              => $labels,
-            'supports'            => array( 'title', 'editor', 'post-formats', 'comments' ),
+            'supports'            => array( 'title', 'editor', 'post-formats', 'thumbnail', 'comments' ),
             'taxonomies'          => array( 'category', 'post_tag' ),
             'hierarchical'        => false,
             'public'              => true,
@@ -343,10 +343,12 @@ class WeDevs_FB_Group_To_WP {
             return;
         }
 
+        $api_version  = 'v2.7';
         $access_token = $option['app_id'] . '|' . $option['app_secret'];
         $group_id     = $option['group_id'];
         $limit        = isset( $option['limit'] ) ? intval( $option['limit'] ) : 30;
-        $url          = 'https://graph.facebook.com/' . $group_id . '/feed/?limit=' . $limit . '&access_token=' . $access_token;
+        $fields       = array( 'message', 'status_type', 'full_picture', 'type', 'permalink_url', 'id', 'from', 'updated_time', 'created_time', 'description', 'comments' );
+        $url          = sprintf( 'https://graph.facebook.com/%s/%d/feed/?fields=%s&limit=%d&access_token=%s', $api_version, $group_id, implode( ',', $fields ), $limit, $access_token );
 
         $json_posts   = $this->fetch_stream( $url );
 
@@ -357,6 +359,8 @@ class WeDevs_FB_Group_To_WP {
         $decoded     = json_decode( $json_posts );
         $group_posts = $decoded->data;
         $paging      = $decoded->paging;
+
+        // var_dump( $group_posts ); exit;
 
         $count       = $this->insert_posts( $group_posts, $group_id );
 
@@ -490,10 +494,11 @@ class WeDevs_FB_Group_To_WP {
     function insert_post( $fb_post, $group_id ) {
 
         // bail out if the post already exists
-        if ( $post_id = $this->is_post_exists( $fb_post->actions[0]->link ) ) {
+        if ( $post_id = $this->is_post_exists( $fb_post->permalink_url ) ) {
             return $post_id;
         }
 
+        $featured_image = false;
         $option = get_option( 'fbgr2wp_settings', array(
             'post_status'    => 'publish',
             'comment_status' => 'open'
@@ -506,13 +511,13 @@ class WeDevs_FB_Group_To_WP {
             'ping_status'    => isset( $option['comment_status'] ) ? $option['comment_status'] : 'open',
             'post_author'    => 1,
             'post_date'      => gmdate( 'Y-m-d H:i:s', ( strtotime( $fb_post->created_time ) ) + ( get_option( 'gmt_offset' ) * HOUR_IN_SECONDS ) ),
-            'guid'           => $fb_post->actions[0]->link
+            'guid'           => $fb_post->permalink_url
         );
 
         $meta = array(
             '_fb_author_id'   => $fb_post->from->id,
             '_fb_author_name' => $fb_post->from->name,
-            '_fb_link'        => $fb_post->actions[0]->link,
+            '_fb_link'        => $fb_post->permalink_url,
             '_fb_group_id'    => $group_id,
             '_fb_post_id'     => $fb_post->id
         );
@@ -524,27 +529,31 @@ class WeDevs_FB_Group_To_WP {
                 break;
 
             case 'photo':
+            case 'video':
 
-                if ( !isset( $fb_post->message ) ) {
-                    $postarr['post_title']   = wp_trim_words( strip_tags( $fb_post->story ), 10, '...' );
-                    $postarr['post_content'] = sprintf( '<p>%1$s</p> <div class="image-wrap"><img src="%2$s" alt="%1$s" /></div>', $fb_post->story, $fb_post->picture );
-                } else {
+                $featured_image = $fb_post->full_picture;
+
+                if ( property_exists( $fb_post, 'message' ) ) {
                     $postarr['post_title']   = wp_trim_words( strip_tags( $fb_post->message ), 10, '...' );
-                    $postarr['post_content'] = sprintf( '<p>%1$s</p> <div class="image-wrap"><img src="%2$s" alt="%1$s" /></div>', $fb_post->message, $fb_post->picture );
+                    $postarr['post_content'] = sprintf( '%1$s', $fb_post->message );
+                } else {
+                    $postarr['post_title']   = wp_trim_words( strip_tags( $fb_post->description ), 10, '...' );
+                    $postarr['post_content'] = sprintf( '<blockquote>%1$s</blockquote>', $fb_post->description );
                 }
 
                 break;
 
             case 'link':
-                parse_str( $fb_post->picture, $parsed_link );
 
-                $postarr['post_title'] = wp_trim_words( strip_tags( $fb_post->message ), 10, '...' );
-                $postarr['post_content'] = '<p>' . $fb_post->message . '</p>';
+                if ( property_exists( $fb_post, 'status_type' ) && $fb_post->status_type == 'shared_story' ) {
+                    $featured_image = $fb_post->full_picture;
+                }
 
-                if ( !empty( $parsed_link['url']) ) {
-                    $postarr['post_content'] .= sprintf( '<a href="%s"><img src="%s"></a>', $fb_post->link, $parsed_link['url'] );
-                } else {
-                    $postarr['post_content'] .= sprintf( '<a href="%s">%s</a>', $fb_post->link, $fb_post->name );
+                $postarr['post_title']   = wp_trim_words( strip_tags( $fb_post->description ), 10, '...' );
+                $postarr['post_content'] = '<blockquote>' . $fb_post->description . '</blockquote>';
+
+                if ( property_exists( $fb_post, 'message' ) ) {
+                    $postarr['post_content'] = $fb_post->message . "\n" . $postarr['post_content'];
                 }
 
                 break;
@@ -557,6 +566,20 @@ class WeDevs_FB_Group_To_WP {
         $post_id = wp_insert_post( $postarr );
 
         if ( $post_id && !is_wp_error( $post_id ) ) {
+
+            if ( $featured_image ) {
+                // required libraries for media_sideload_image
+                require_once ABSPATH . 'wp-admin/includes/file.php';
+                require_once ABSPATH . 'wp-admin/includes/media.php';
+                require_once ABSPATH . 'wp-admin/includes/image.php';
+
+                $result      = media_sideload_image( $featured_image, $post_id, $postarr['post_title'] );
+                $attachments = get_posts(array('numberposts' => '1', 'post_parent' => $post_id, 'post_type' => 'attachment', 'post_mime_type' => 'image', 'order' => 'ASC'));
+
+                if ( sizeof($attachments) > 0 ) {
+                    set_post_thumbnail( $post_id, $attachments[0]->ID );
+                }
+            }
 
             if ( $fb_post->type !== 'status' ) {
                 set_post_format( $post_id, $fb_post->type );
@@ -645,7 +668,7 @@ class WeDevs_FB_Group_To_WP {
             $link        = get_post_meta( $post->ID, '_fb_link', true );
             $group_id    = get_post_meta( $post->ID, '_fb_group_id', true );
 
-            $author_link = sprintf( '<a href="https://facebook.com/profile.php?id=%d" target="_blank">%s</a>', $author_id, $author_name );
+            $author_link = sprintf( '<a href="https://facebook.com/%d" target="_blank">%s</a>', $author_id, $author_name );
 
             $custom_data = '<div class="fb-group-meta">';
             $custom_data .= sprintf( __( 'Posted by %s', 'fbgr2wp' ), $author_link );
