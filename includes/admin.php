@@ -106,6 +106,10 @@ class WeDevs_FB_Group_To_WP_Admin {
         $this->settings_api->show_navigation();
         $this->settings_api->show_forms();
 
+        echo '<hr>';
+        printf( '<a href="%s" target="_blank">%s</a> | ', home_url( '/?fb2wp_test' ), __( 'Test Run', 'fbgr2wp' ) );
+        printf( '<a href="%s" target="_blank">%s</a>', home_url( '/?fb2wp_hist' ), __( 'Historical Import', 'fbgr2wp' ) );
+
         echo '</div>';
     }
 }
