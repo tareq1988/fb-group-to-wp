@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: Facebook Group to WordPress importer
-Plugin URI: http://tareq.wedevs.com/
+Plugin URI: https://tareq.co/
 Description: Import facebook group posts into WordPress
 Version: 1.0
 Author: Tareq Hasan
@@ -10,7 +10,7 @@ License: GPL2
 */
 
 /**
- * Copyright (c) 2014 Tareq Hasan (email: tareq@wedevs.com). All rights reserved.
+ * Copyright (c) 2018 Tareq Hasan (email: tareq@wedevs.com). All rights reserved.
  *
  * Released under the GPL license
  * http://www.opensource.org/licenses/gpl-license.php
@@ -51,7 +51,19 @@ if ( is_admin() ) {
  */
 class WeDevs_FB_Group_To_WP {
 
+    /**
+     * The post type
+     *
+     * @var string
+     */
     private $post_type = 'fb_group_post';
+
+    /**
+     * Facebook API version
+     *
+     * @var string
+     */
+    private $api_version = 'v2.11';
 
     /**
      * Constructor for the WeDevs_FB_Group_To_WP class
@@ -246,6 +258,17 @@ class WeDevs_FB_Group_To_WP {
     }
 
     /**
+     * Get the post type to insert
+     *
+     * @since 1.1
+     *
+     * @return string
+     */
+    public function get_post_type() {
+        return apply_filters( 'fbgr2wp_post_type', $this->post_type );
+    }
+
+    /**
      * Do a historical or paginated import
      *
      * This is a clever approach to import all the posts from a group.
@@ -273,13 +296,13 @@ class WeDevs_FB_Group_To_WP {
         $root_page    = add_query_arg( array( 'fb2wp_hist' => '' ), home_url() );
         $page_num     = isset( $_GET['page'] ) ? intval( $_GET['page'] ) : 1;
 
-
         $option       = $this->get_settings();
         $access_token = $option['app_id'] . '|' . $option['app_secret'];
         $group_id     = $option['group_id'];
         $limit        = isset( $option['limit'] ) ? intval( $option['limit'] ) : 30;
 
-        $fb_url       = 'https://graph.facebook.com/' . $group_id . '/feed/?limit=' . $limit . '&access_token=' . $access_token;
+        $fields       = array( 'message', 'status_type', 'full_picture', 'type', 'permalink_url', 'id', 'from', 'updated_time', 'created_time', 'description', 'comments' );
+        $fb_url       = sprintf( 'https://graph.facebook.com/%s/%d/feed/?fields=%s&limit=%d&access_token=%s', $this->api_version, $group_id, implode( ',', $fields ), $limit, $access_token );
 
         // build the query URL for next page
         if ( $page_num > 1 ) {
@@ -339,16 +362,15 @@ class WeDevs_FB_Group_To_WP {
     function do_import() {
         $option = $this->get_settings();
 
-        if ( !$option ) {
+        if ( ! $option ) {
             return;
         }
 
-        $api_version  = 'v2.7';
         $access_token = $option['app_id'] . '|' . $option['app_secret'];
         $group_id     = $option['group_id'];
         $limit        = isset( $option['limit'] ) ? intval( $option['limit'] ) : 30;
         $fields       = array( 'message', 'status_type', 'full_picture', 'type', 'permalink_url', 'id', 'from', 'updated_time', 'created_time', 'description', 'comments' );
-        $url          = sprintf( 'https://graph.facebook.com/%s/%d/feed/?fields=%s&limit=%d&access_token=%s', $api_version, $group_id, implode( ',', $fields ), $limit, $access_token );
+        $url          = sprintf( 'https://graph.facebook.com/%s/%d/feed/?fields=%s&limit=%d&access_token=%s', $this->api_version, $group_id, implode( ',', $fields ), $limit, $access_token );
 
         $json_posts   = $this->fetch_stream( $url );
 
@@ -498,6 +520,7 @@ class WeDevs_FB_Group_To_WP {
             return $post_id;
         }
 
+        $post_format    = 'standard';
         $featured_image = false;
         $option = get_option( 'fbgr2wp_settings', array(
             'post_status'    => 'publish',
@@ -505,7 +528,7 @@ class WeDevs_FB_Group_To_WP {
         ) );
 
         $postarr = array(
-            'post_type'      => $this->post_type,
+            'post_type'      => $this->get_post_type(),
             'post_status'    => $option['post_status'],
             'comment_status' => isset( $option['comment_status'] ) ? $option['comment_status'] : 'open',
             'ping_status'    => isset( $option['comment_status'] ) ? $option['comment_status'] : 'open',
@@ -524,19 +547,27 @@ class WeDevs_FB_Group_To_WP {
 
         switch ($fb_post->type) {
             case 'status':
+                $post_format = 'status';
+
+                if ( ! isset( $fb_post->message ) ) {
+                    return;
+                }
+
                 $postarr['post_title']   = wp_trim_words( strip_tags( $fb_post->message ), 10, '...' );
                 $postarr['post_content'] = $fb_post->message;
+
                 break;
 
             case 'photo':
             case 'video':
 
+                $post_format    = 'image';
                 $featured_image = $fb_post->full_picture;
 
                 if ( property_exists( $fb_post, 'message' ) ) {
                     $postarr['post_title']   = wp_trim_words( strip_tags( $fb_post->message ), 10, '...' );
                     $postarr['post_content'] = sprintf( '%1$s', $fb_post->message );
-                } else {
+                } else if ( property_exists( $fb_post, 'description') ) {
                     $postarr['post_title']   = wp_trim_words( strip_tags( $fb_post->description ), 10, '...' );
                     $postarr['post_content'] = sprintf( '<blockquote>%1$s</blockquote>', $fb_post->description );
                 }
@@ -545,7 +576,9 @@ class WeDevs_FB_Group_To_WP {
 
             case 'link':
 
-                if ( property_exists( $fb_post, 'status_type' ) && $fb_post->status_type == 'shared_story' ) {
+                $post_format = 'link';
+
+                if ( property_exists( $fb_post, 'status_type' ) && $fb_post->status_type == 'shared_story' && isset( $fb_post->full_picture ) ) {
                     $featured_image = $fb_post->full_picture;
                 }
 
@@ -561,6 +594,10 @@ class WeDevs_FB_Group_To_WP {
             default:
                 # code...
                 break;
+        }
+
+        if ( empty( $postarr['post_title'] ) ) {
+            return;
         }
 
         $post_id = wp_insert_post( $postarr );
