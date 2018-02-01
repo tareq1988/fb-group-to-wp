@@ -4,7 +4,7 @@ Donate Link: https://tareq.co/donate/
 Tags: facebook, group, cron, post, thread, wordpress, import, comments
 Requires at least: 3.6
 Tested up to: 4.6.1
-Stable tag: trunk
+Stable tag: 1.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -53,7 +53,11 @@ Nothing here yet
 
 == Changelog ==
 
-= 1.0 - 19 Sep 2016 =
+= Version 1.1 - 1 February 2018 =
+
+ - **Fix:** Facebook Graph API v2.11 compatibility added
+
+= Version 1.0 - 19 Sep 2016 =
 
 - [fix] Graph API v2.7 compatibility
 - [new] Post thumbnail support added
