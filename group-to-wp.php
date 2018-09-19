@@ -63,7 +63,7 @@ class WeDevs_FB_Group_To_WP {
      *
      * @var string
      */
-    private $api_version = 'v2.11';
+    private $api_version = 'v3.1';
 
     /**
      * Constructor for the WeDevs_FB_Group_To_WP class
@@ -297,7 +297,7 @@ class WeDevs_FB_Group_To_WP {
         $page_num     = isset( $_GET['page'] ) ? intval( $_GET['page'] ) : 1;
 
         $option       = $this->get_settings();
-        $access_token = $option['app_id'] . '|' . $option['app_secret'];
+        $access_token = $option['access_token'];
         $group_id     = $option['group_id'];
         $limit        = isset( $option['limit'] ) ? intval( $option['limit'] ) : 30;
 
@@ -366,7 +366,7 @@ class WeDevs_FB_Group_To_WP {
             return;
         }
 
-        $access_token = $option['app_id'] . '|' . $option['app_secret'];
+        $access_token = $option['access_token'];
         $group_id     = $option['group_id'];
         $limit        = isset( $option['limit'] ) ? intval( $option['limit'] ) : 30;
         $fields       = array( 'message', 'status_type', 'full_picture', 'type', 'permalink_url', 'id', 'from', 'updated_time', 'created_time', 'description', 'comments' );
@@ -397,6 +397,7 @@ class WeDevs_FB_Group_To_WP {
      */
     function fetch_stream( $url ) {
         self::log( 'debug', 'Fetching data from facebook' );
+        self::log( 'debug', $url );
 
         $request = wp_remote_get( $url );
         $json_posts = wp_remote_retrieve_body( $request );
@@ -538,8 +539,6 @@ class WeDevs_FB_Group_To_WP {
         );
 
         $meta = array(
-            '_fb_author_id'   => $fb_post->from->id,
-            '_fb_author_name' => $fb_post->from->name,
             '_fb_link'        => $fb_post->permalink_url,
             '_fb_group_id'    => $group_id,
             '_fb_post_id'     => $fb_post->id
@@ -646,8 +645,7 @@ class WeDevs_FB_Group_To_WP {
 
         $commentarr = array(
             'comment_post_ID'    => $post_id,
-            'comment_author'     => $fb_comment->from->name,
-            'comment_author_url' => 'https://facebook.com/' . $fb_comment->from->id,
+            'comment_author'     => 'Guest;',
             'comment_content'    => $fb_comment->message,
             'comment_date'       => gmdate( 'Y-m-d H:i:s', ( strtotime( $fb_comment->created_time ) + ( get_option( 'gmt_offset' ) * HOUR_IN_SECONDS ) ) ),
             'comment_approved'   => 1,
@@ -655,7 +653,6 @@ class WeDevs_FB_Group_To_WP {
         );
 
         $meta = array(
-            '_fb_author_id'   => $fb_comment->from->id,
             '_fb_comment_id'  => $fb_comment->id
         );
 
@@ -700,22 +697,16 @@ class WeDevs_FB_Group_To_WP {
         global $post;
 
         if ( $post->post_type == $this->post_type ) {
-            $author_id   = get_post_meta( $post->ID, '_fb_author_id', true );
-            $author_name = get_post_meta( $post->ID, '_fb_author_name', true );
             $link        = get_post_meta( $post->ID, '_fb_link', true );
             $group_id    = get_post_meta( $post->ID, '_fb_group_id', true );
 
-            $author_link = sprintf( '<a href="https://facebook.com/%d" target="_blank">%s</a>', $author_id, $author_name );
-
             $custom_data = '<div class="fb-group-meta">';
-            $custom_data .= sprintf( __( 'Posted by %s', 'fbgr2wp' ), $author_link );
-            $custom_data .= '<span class="sep"> | </span>';
             $custom_data .= sprintf( '<a href="%s" target="_blank">%s</a>', $link, __( 'View Post', 'fbgr2wp' ) );
             $custom_data .= '<span class="sep"> | </span>';
             $custom_data .= sprintf( '<a href="https://facebook.com/groups/%s" target="_blank">%s</a>', $group_id, __( 'View Group', 'fbgr2wp' ) );
             $custom_data .= '</div>';
 
-            $custom_data = apply_filters( 'fbgr2wp_content', $custom_data, $post, $author_id, $author_name, $link, $group_id );
+            $custom_data = apply_filters( 'fbgr2wp_content', $custom_data, $post, $link, $group_id );
 
             $content .= $custom_data;
         }
@@ -774,10 +765,7 @@ class WeDevs_FB_Group_To_WP {
      * @param string $msg
      */
     public static function log( $type = '', $msg = '' ) {
-        if ( WP_DEBUG == true ) {
-            $msg = sprintf( "[%s][%s] %s\n", date( 'd.m.Y h:i:s' ), $type, $msg );
-            error_log( $msg, 3, dirname( __FILE__ ) . '/debug.log' );
-        }
+        error_log( sprintf( '[%s] %s', $type, $msg ) );
     }
 
 } // WeDevs_FB_Group_To_WP

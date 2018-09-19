@@ -65,6 +65,12 @@ class WeDevs_FB_Group_To_WP_Admin {
                 'desc'    => __( 'Insert your facebook App Secret', 'fbgr2wp' )
             ),
             array(
+                'name'    => 'access_token',
+                'label'   => __( 'User Access Token', 'fbgr2wp'),
+                'default' => '',
+                'desc'    => sprintf( __( 'Insert your person Access Token with <code>publish_to_groups</code> permission. Get your access token from <a href="%s" target="_blank">here</a>.', 'fbgr2wp'), 'https://developers.facebook.com/tools/explorer/' )
+            ),
+            array(
                 'name'    => 'group_id',
                 'label'   => __( 'Facebook Group ID', 'fbgr2wp'),
                 'default' => '',
